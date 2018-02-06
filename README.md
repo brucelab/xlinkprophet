@@ -14,3 +14,6 @@ to both released peptides of a crosslink.
 The input file is the validated search results in pepXML format.  The output is validated crosslinks in Kojak pepXML format.
 Note that the XLinkProphet probability is encoded as PeptideProphet in the output so that multiple output files can be
 combined with iProphet.
+
+Usage:   XLinkProphet.pl < PeptideProphet or iProphet pepXML file > (options)
+Type:    XLinkProphet.pl to view all options
