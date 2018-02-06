@@ -16,4 +16,5 @@ Note that the XLinkProphet probability is encoded as PeptideProphet in the outpu
 combined with iProphet.
 
 Usage:   XLinkProphet.pl < PeptideProphet or iProphet pepXML file > (options)
+
 Type:    XLinkProphet.pl to view all options
