@@ -19,7 +19,6 @@ my %MODEL_BINS = ( 	'massdiff_bin' => 5,
 					'deltacn_bin' => 0.2, 
 				); # for those with adjusted values to create bins
 
-# CROSSLINK_MODS=K:214.077603
 # these are modified peptide masses indicative of the crosslink stump
 my @CROSSLINK_MODS = ({'n' => 198, 'K' => 325}); # light values for our crosslinker
 my $REPORTERMASS = 751.40508; # for BHP
