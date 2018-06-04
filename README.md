@@ -27,15 +27,12 @@ Download all Control Data Set files in the ReACT directory to a directory on you
 In a terminal, go into the directory with your data and type the following three commands in succession:
 
 1. Combine the 9 search result files into a single interact.pep.xml file, and run PeptideProphet to assign probabilities that each search result is correct:
-
 xinteract -OEAdP -p0 -PPM -l6 -drev_ 082117_BSA_1mMBDP_2hr_1.pep.xml 101117_a-casein_BDP_2hr_1.pep.xml 101117_a-lactalbumin_BDP_2hr_1.pep.xml 101117_ADH_BDP_2hr_1.pep.xml 101117_b-casein_BDP_2hr_1.pep.xml 101117_b-lactoglobulin_BDP_2hr_1.pep.xml 101117_cytochromeC_BDP_2hr_1.pep.xml 101117_histone_BDP_2hr_1.pep.xml 101117_myoglobin_BDP_2hr_1.pep.xml
 
 2. Run iProphet to further validate the search results with additional models, assigning revised probabilities that the search results are correct in output file iprophet.pep.xml:
-
 InterProphetParser interact.pep.xml iprophet.pep.xml
 
 3. Run XLinkProphet using the LOCAL_REACT setting to not use the raw data file locations in the search results to find the react2.xls pairing files, but rather find them in the current directory:
-
 XLinkProphet.pl iprophet.pep.xml LOCAL_REACT
 
 Your final output will be a pepXML file iprophet-xl.pep.xml and a tab delimited file iprophet-xl.xls.
