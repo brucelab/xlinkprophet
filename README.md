@@ -19,3 +19,21 @@ combined with iProphet.
 Usage:   XLinkProphet.pl < PeptideProphet or iProphet pepXML file > (options)
 
 Type:    XLinkProphet.pl to view all options
+
+Run XLinkProphet on the ReACT analysis of the Control data set, consisting of 9 search result pepXML files and 9 react2.xls pairing files that link up the search results of the crosslink's 2 released peptides:
+
+Download all Control Data Set files in the ReACT directory to a directory on your computer, along with XLinkProphet.pl.  You will need the Trans-Proteomic Pipeline (https://sourceforge.net/projects/sashimi/) on your computer as well.
+
+In a terminal, go into the directory with your data and type the following three commands in succession:
+
+1. Combine the 9 search result files into a single interact.pep.xml file, and run PeptideProphet to assign probabilities that each search result is correct:
+xinteract -OEAdP -p0 -PPM -l6 -drev_ 082117_BSA_1mMBDP_2hr_1.pep.xml 101117_a-casein_BDP_2hr_1.pep.xml 101117_a-lactalbumin_BDP_2hr_1.pep.xml 101117_ADH_BDP_2hr_1.pep.xml 101117_b-casein_BDP_2hr_1.pep.xml 101117_b-lactoglobulin_BDP_2hr_1.pep.xml 101117_cytochromeC_BDP_2hr_1.pep.xml 101117_histone_BDP_2hr_1.pep.xml 101117_myoglobin_BDP_2hr_1.pep.xml
+
+2. Run iProphet to further validate the search results with additional models, assigning revised probabilities that the search results are correct to output file iprophet.pep.xml:
+InterProphetParser interact.pep.xml iprophet.pep.xml
+
+3. Run XLinkProphet using the LOCAL_REACT setting to not use the raw data file locations in the search results to find the react2.xls pairing files, but rather find them in the current directory:
+XLinkProphet.pl iprophet.pep.xml LOCAL_REACT
+
+Your final output will be a pepXML file iprophet-xl.pep.xml and a tab delimited file iprophet-xl.xls.
+
