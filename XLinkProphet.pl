@@ -19,9 +19,10 @@ my %MODEL_BINS = ( 	'massdiff_bin' => 5,
 					'deltacn_bin' => 0.2, 
 				); # for those with adjusted values to create bins
 
-
+# CROSSLINK_MODS=K:214.077603
 # these are modified peptide masses indicative of the crosslink stump
 my @CROSSLINK_MODS = ({'n' => 198, 'K' => 325}); # light values for our crosslinker
+my $REPORTERMASS = 751.40508; # for BHP
 
 if(@ARGV == 0) {
 	printf STDERR "\n";
@@ -35,6 +36,7 @@ if(@ARGV == 0) {
 	printf STDERR "          LOCAL_REACT (Use React2.xls files in current directory rather than those referenced in the inputfile)\n";
 	printf STDERR "          PAIRFILE_SUFF=xxx (Suffix appended to search result pepXML file names for pairing files containing spectrum scan numbers of 2 peptides plus mass and charge of crosslink parent)\n";
 	printf STDERR "          CROSSLINK_MODS=x:202,y:329,xxx (supplement default values of n:198 and K325 with specified values for n/c termini or AA x,y,z...)\n";
+	printf STDERR "          REPORTERMASS=xxx (mass of crosslink reporter [default: $REPORTERMASS for BHP])\n";
 	printf STDERR "\n";
 	printf STDERR " models:  %s\n", join(", ", sort {$a cmp $b} keys %MODELS);
 	printf STDERR "\n";
@@ -69,9 +71,6 @@ my $COMPUTE_COMPOSITE_FDRs = exists $MODELS{'nrx'};
 my $PROTPROPH_INFO = {}; # read in proteins associated with each peptide
 my $USE_PROTPROPH_PROTS = 1; # whether to read proteinprophet protein information and prioritize 
 my $MIN_XL_PROB_4_PROTPROPH = 0; # only substitute with protein prophet proteins if XLinkProphet probability at least this great
-my %GENE_NAMES = ();
-my $UNIPROT_CONVERSION_FILE = "/full/path/to/uniprot_conversion_table.txt"; # full path to uniprot_conversion_table.txt file
-my %PEP_MAXPROBS = (); # holds the max xlink prob with each peptide, so know whether to bother pursuing GENENAMES
 my $PAIRFILE_SUFF = ""; # used only for universal acceptance
 my $PAIRING = "";
 my %MANGO_SPECS = (); # spectrum_labels to make sure iProphet can accommodate multiple results for the same spectrum
@@ -130,7 +129,7 @@ for(my $k = 1; $k < @ARGV; $k++) {
 					printf "number %d: %s => %s\n", $j, $next[$i], $CROSSLINK_MODS[$j]->{$next[$i]};
 				}
 			}
-				
+				#exit(1);
 		}
 		else {
 			die "Error, have no CROSSLINK_MODS $1 specified\n";
@@ -139,6 +138,10 @@ for(my $k = 1; $k < @ARGV; $k++) {
 	elsif($ARGV[$k] eq 'LOCAL_REACT') {
 		$LOCAL_REACT = 1;
 		printf STDERR "Setting to LOCAL_REACT to 1\n";
+	}
+	elsif($ARGV[$k] =~ /^REPORTERMASS\=(\S+)/) {
+		$REPORTERMASS = $1;
+		printf STDERR "Setting REPORTERMASS to %s\n", $REPORTERMASS; #exit(1);
 	}
 	else {
 		die "Error: $ARGV[$k] is not valid option\n";
@@ -344,11 +347,11 @@ while(<FILE>) {
 		$scan_info{$parsed[$headers{'scan'}]}->{'charge'} = $parsed[$headers{'intact_charge'}];
 		$scan_info{$parsed[$headers{'scan'}]}->{'mass'} = $parsed[$headers{'intact_mass'}];
 		if($compute_pepmassdiff) {
-			$scan_info{$parsed[$headers{'scan'}]}->{'pepmass_diff'} = [$parsed[$headers{'intact_mass'}] - $parsed[$headers{'pep1_mass'}] - $parsed[$headers{'pep2_mass'}] - 751.40508];
+			$scan_info{$parsed[$headers{'scan'}]}->{'pepmass_diff'} = [$parsed[$headers{'intact_mass'}] - $parsed[$headers{'pep1_mass'}] - $parsed[$headers{'pep2_mass'}] - $REPORTERMASS];
 		}
 	}
 	elsif($compute_pepmassdiff) {
-		push(@{$scan_info{$parsed[$headers{'scan'}]}->{'pepmass_diff'}}, $parsed[$headers{'intact_mass'}] - $parsed[$headers{'pep1_mass'}] - $parsed[$headers{'pep2_mass'}] - 751.40508);
+		push(@{$scan_info{$parsed[$headers{'scan'}]}->{'pepmass_diff'}}, $parsed[$headers{'intact_mass'}] - $parsed[$headers{'pep1_mass'}] - $parsed[$headers{'pep2_mass'}] - $REPORTERMASS);
 	}
 }
 printf STDERR "Stored %d values from %s\n", scalar keys %scan_info, $file;
@@ -683,7 +686,7 @@ elsif($PAIRING eq 'Universal') {
 	}
 
 	if(@pairing_files == 0) {
-		printf STDERR "Error: No react2.xls files found in %s\n", $scan_dir;
+		printf STDERR "Error: No pairing files found in %s\n", $scan_dir;
 		exit(1);
 	}
 
@@ -903,90 +906,11 @@ if($pprophfile =~ /xml$/) {
 	}
 }
 else {
-	printf STDERR "Parsing XLS file %s\n", $pprophfile;
-	while(<FILE>) {
-		chomp();
-		my @parsed = split("\t");
-		if($first) {
-			$first = 0;
-			for(my $k = 0; $k < @parsed; $k++) {
-				$headers{$parsed[$k]} = $k if(exists $headers{$parsed[$k]});
-			}
-			for(my $k = 0; $k < @headers; $k++) {
-				die "Could not find $headers[$k] in $_\n" if($headers{$headers[$k]} == -1);
-			}
-		}
-		else {
-			if($PAIRING eq 'Mango' && $parsed[$headers{'spectrum'}] =~ /^(\S+)(\_\d\d\d\.)(\d+)\.(\d+)(\.\d)$/) {
-				my $base = $1;
-				my $pref = $base . $2;
-				my $scan1 = $3;
-				my $scan2 = $4;
-				my $suff = $5;
-				my $index = 1;
-				if($scan1 =~ /^1(\d\d\d\d\d)$/) {
-					$scan1 = $1;
-					$index = 2;
-				}
-				elsif($scan1 !~ /\d\d\d\d\d/) {
-					die "problem parsing $parsed[$headers{'spectrum'}]\n";
-				}
-				$scan_info{$base}++;
-			
-				$parsed[$headers{'spectrum'}] = $pref . $scan1 . '.' . $scan1;
-				$results{$parsed[$headers{'spectrum'}]} = {} if(! exists $results{$parsed[$headers{'spectrum'}]});
-				$results{$parsed[$headers{'spectrum'}]}->{$index} = [$parsed[$headers{'probability'}], $parsed[$headers{'protein'}], 
-					$parsed[$headers{'peptide'}], $parsed[$headers{'assumed_charge'}], $parsed[$headers{'calc_neutral_pep_mass'}],
-					$parsed[$headers{'expect'}]];	
-
-				push(@{$results{$parsed[$headers{'spectrum'}]}->{$index}}, $parsed[$headers{'deltacn'}]) if(exists $distvals{'deltacn_bin'});
-
-				$pref = $1 if($pref =~ /^(\S+)\_\d\d\d\.$/);
-				$pref .= '_' . $scan1;
-				$result_groups{$pref} = {} if(! exists $result_groups{$pref});
-				$result_groups{$pref}->{$parsed[$headers{'spectrum'}]}++;
-			}
-			elsif(! ($PAIRING eq 'Mango') && $parsed[$headers{'spectrum'}] =~ /^(\S+)(\.)(\d+)\.(\d+)(\.\d)$/) {
-				my $base = $1;
-				my $pref = $base . '_000_' . $2;
-				my $scan1 = $3;
-				my $scan2 = $4;
-				my $suff = $5;
-				my $index = 1;
-				# check whether this is peptide1 or 2 for a pair
-				if(exists $scan_info{$base} && exists $scan_info{$base}->{$scan1}) {
-					my $index = exists $scan_info{$base}->{$scan1}->{'mass'} ? 1 :
-						exists $scan_info{$base}->{$scan1}->{'partner'} ? 2 : die "invalid scan type for $base and $scan1\n";
-					my $spectrum = $index == 1 ? $pref . $scan1 . '.' . $scan1 : $scan_info{$base}->{$scan1}->{'partner'};
-					$results{$spectrum} = {} if(! exists $results{$spectrum});
-					$results{$spectrum}->{$index} = [$parsed[$headers{'probability'}], $parsed[$headers{'protein'}], 
-						$parsed[$headers{'peptide'}], $parsed[$headers{'assumed_charge'}], $parsed[$headers{'calc_neutral_pep_mass'}],
-						$parsed[$headers{'expect'}]];
-						
-					push(@{$results{$spectrum}->{$index}}, $parsed[$headers{'deltacn'}]) if(exists $distvals{'deltacn_bin'});
-					$pref = $1 if($pref =~ /^(\S+)\_\d\d\d\.$/);
-					$pref .= '_' . $scan1;
-					$result_groups{$pref} = {} if(! exists $result_groups{$pref});
-					$result_groups{$pref}->{$spectrum}++;
-					$distvals{'spectrum2'}->{$spectrum} = $base . '.' . $scan1 . '.' . $scan1 if($index == 2);
-				}
-				elsif(! exists $scan_info{$base}) {
-					next;
-				}
-				else {
-					next;
-				}
-			}
-			else {
-				die "--> problem parsing $parsed[$headers{'spectrum'}]\n";
-			}
-		}
-	}
-} # pepxls
+	die "Error: input must be a pepXML file\n";
+}
 close(FILE);
 printf STDERR "Read in results for %d spectra\n", scalar keys %results;
 printf STDERR "Read in %d unique input file bases: %s\n", scalar keys %scan_info, join(",", keys %scan_info);
-printf "SPEC TOT: $SPEC_TOT\n";
 if($PAIRING eq 'Mango') {
 	foreach my $next (keys %scan_info) {
 		$scan_info{$next} = readPeaksText($next.".peaks", exists $posdists{'massdiff_offset'});
@@ -1072,7 +996,7 @@ foreach(sort {$a cmp $b} keys %results) {
 				$distvals{'reporter_charge'}->{$_} = geValueWithinDistributionBounds($distvals{'reporter_charge'}->{$_}, $sorted_distribution_values{'reporter_charge'});
 			}
 
-			$distvals{'massdiff_ppm'}->{$_} = $scan_info{$base}->{$scan}->{'mass'} - $results{$_}->{1}->[4] - $results{$_}->{2}->[4] - 751.40508; 
+			$distvals{'massdiff_ppm'}->{$_} = $scan_info{$base}->{$scan}->{'mass'} - $results{$_}->{1}->[4] - $results{$_}->{2}->[4] - $REPORTERMASS; 
 			# can remove the offsets and convert to ppm
 			if($distvals{'massdiff_ppm'}->{$_} < -4) {
 				$distvals{'massdiff_ppm'}->{$_} += 4;
@@ -1171,7 +1095,6 @@ foreach(sort {$a cmp $b} keys %results) {
 	}
 }
 
-printf "HAVE %d PROBS\n", scalar keys %probabilities; 
 
 if(! $OUTPUT_DECOYS) {
 	$prior_without_decoys /= ($tot_num - $num_decoys) if($tot_num - $num_decoys > 0);
@@ -1198,9 +1121,6 @@ if($compute_decoy_fdr) {
 }
 
 if($compute_decoy_fdr) {
-	$num_lows /= $num_low_decoys;
-	$num_lows -= 1 if(! $OUTPUT_DECOYS);
-	printf STDERR "Using decoy factor %0.2f to compute decoy fdrs\n", $num_lows;
 	my @sorted_expects = sort {$distvals{'max_expect'}->{$a} <=> $distvals{'max_expect'}->{$b}} keys %results;
 	my $tot = 0;
 	my $num_decoys = 0;
@@ -1397,8 +1317,6 @@ if($COMPUTE_COMPOSITE_FDRs) {
 		}
 	}
 	my @composite_sorted = sort {$CROSSLINK_FDRs{$a} <=> $CROSSLINK_FDRs{$b}} keys %CROSSLINK_FDRs;
-	printf "HAVE %d composite sorted crosslinks with outer values %0.3f and %0.3f\n", scalar @composite_sorted,
-		$CROSSLINK_FDRs{$composite_sorted[0]}, $CROSSLINK_FDRs{$composite_sorted[-1]};
 	$COMPOSITE_FDR = 0;
 	my $lastprob = 1;
 	for(my $k = 0; $k < @composite_sorted; $k++) {
@@ -1416,15 +1334,10 @@ if($COMPUTE_COMPOSITE_FDRs) {
 		$next_fdr = 0 if(! $OUTPUT_DECOYS && $next_fdr < 0); # could happen if have high prob decoy near top....
 		$next_fdr = $prev_fdr if($next_fdr < $prev_fdr);
 		while($COMPOSITE_ROC_IND < @ROC_MINPROBS && $nextprob < $ROC_MINPROBS[$COMPOSITE_ROC_IND]) {
-			printf "Adding for ROC minprob thresh $ROC_MINPROBS[$COMPOSITE_ROC_IND] at $lastprob with FDR $prev_fdr....\n" if(0);
-
 			$COMPOSITE_ROCS{$ROC_MINPROBS[$COMPOSITE_ROC_IND]} = [$k + 1 - $next_comp_incorr, $next_comp_incorr, $prev_fdr];
 			$COMPOSITE_ROC_IND++;
 		}
 		while($COMPOSITE_ERRORPT_IND < @ERRORPT_FDRS && $COMPOSITE_FDR / ($k+1) > $ERRORPT_FDRS[$COMPOSITE_ERRORPT_IND]) {
-			printf "HERE with composite FDR %0.3f for threshold %0.2f and index $k for error point %s\n", 
-			$COMPOSITE_FDR / ($k+1), $lastprob, $ERRORPT_FDRS[$COMPOSITE_ERRORPT_IND] if(0);
-			
 			$COMPOSITE_ERRORPTS{$ERRORPT_FDRS[$COMPOSITE_ERRORPT_IND]} = [$lastprob, $k + 1 - $next_comp_incorr, $next_comp_incorr];
 			$COMPOSITE_ERRORPT_IND++;
 		}	
@@ -1582,8 +1495,6 @@ foreach(@sorted) {
 			$PROTPROPH_INFO->{$stripped1} = {} if(! exists $PROTPROPH_INFO->{$stripped1});
 			my $stripped2 = stripPeptide($results{$_}->{2}->[2]);
 			$PROTPROPH_INFO->{$stripped2} = {} if(! exists $PROTPROPH_INFO->{$stripped2});
-			$PEP_MAXPROBS{$stripped1} = $nextprob if(! exists $PEP_MAXPROBS{$stripped1} || $nextprob > $PEP_MAXPROBS{$stripped1});
-			$PEP_MAXPROBS{$stripped2} = $nextprob if(! exists $PEP_MAXPROBS{$stripped2} || $nextprob > $PEP_MAXPROBS{$stripped2});
 		}	
 	}
 	
@@ -1673,7 +1584,6 @@ if(! ($OUTPUT_PEPXML eq '')) {
 				}
 			}
 			attributePeptides2Proteins($protproph);
-			setGeneNamesFromUniprot();
 		}
 		else {
 			die "Error with input file $file\n";
@@ -1886,7 +1796,7 @@ if(! ($OUTPUT_PEPXML eq '')) {
 					for(my $k = 0; $k < @{$results{$_}->{1}->[-1]}-1; $k++) {
 						if($results{$_}->{1}->[-1]->[$k] =~ /(\<linked\_peptide.*?peptide\_prev\_aa\=\")\S(\" peptide\_next\_aa\=\")\S(\" protein=\")\S+(\".*?num\_tol\_term\=\")\d(\".*?protein\_descr\=\").*?(\".*)$/) {
 							$results{$_}->{1}->[-1]->[$k] = $1 . $protData{$protInfo->[0]}->[1] . $2 . $protData{$protInfo->[0]}->[2] . $3 . $protInfo->[0] . $4 . 
-								$protData{$protInfo->[0]}->[3] . $5 . $protData{$protInfo->[0]}->[0] . (sprintf "\" gene=\"%s\" weight=\"%0.2f\" nsp=\"%0.1f", $GENE_NAMES{$protInfo->[0]}, $PROTPROPH_INFO->{$strip1}->{$protInfo->[0]}->[0], $PROTPROPH_INFO->{$strip1}->{$protInfo->[0]}->[2]) . $6;
+								$protData{$protInfo->[0]}->[3] . $5 . $protData{$protInfo->[0]}->[0] . (sprintf "\" weight=\"%0.2f\" nsp=\"%0.1f", $PROTPROPH_INFO->{$strip1}->{$protInfo->[0]}->[0], $PROTPROPH_INFO->{$strip1}->{$protInfo->[0]}->[2]) . $6;
 						}
 						elsif($results{$_}->{1}->[-1]->[$k] =~ /\<alternative\_protein/) {
 							if($index > $#{$protInfo->[1]}) {
@@ -1895,8 +1805,8 @@ if(! ($OUTPUT_PEPXML eq '')) {
 							}
 							else {
 								my @next = split(":", $protInfo->[1]->[$index]);
-								$results{$_}->{1}->[-1]->[$k] = sprintf "<alternative_protein protein=\"%s\" protein_descr=\"%s\" num_tol_term=\"%d\" peptide_prev_aa=\"%s\" peptide_next_aa=\"%s\" gene=\"%s\" weight=\"%0.2f\" nsp=\"%0.1f\"/>",
-									$next[0], $protData{$next[0]}->[0], $protData{$next[0]}->[3], $protData{$next[0]}->[1], $protData{$next[0]}->[2], $GENE_NAMES{$next[0]}, $next[1],
+								$results{$_}->{1}->[-1]->[$k] = sprintf "<alternative_protein protein=\"%s\" protein_descr=\"%s\" num_tol_term=\"%d\" peptide_prev_aa=\"%s\" peptide_next_aa=\"%s\" weight=\"%0.2f\" nsp=\"%0.1f\"/>",
+									$next[0], $protData{$next[0]}->[0], $protData{$next[0]}->[3], $protData{$next[0]}->[1], $protData{$next[0]}->[2], 
 									$PROTPROPH_INFO->{$strip1}->{$next[0]}->[2];
 								$index++;
 							}
@@ -1904,8 +1814,8 @@ if(! ($OUTPUT_PEPXML eq '')) {
 						elsif(/<modification_info/) {
 							while($k > 0 && $index < @{$protInfo->[1]}) {
 								my @next = split(":", $protInfo->[1]->[$index]);
-								$results{$_}->{1}->[-1]->[$k-1] .= sprintf "\n<alternative_protein protein=\"%s\" protein_descr=\"%s\" num_tol_term=\"%d\" peptide_prev_aa=\"%s\" peptide_next_aa=\"%s\" gene=\"%s\" weight=\"%0.2f\" nsp=\"%0.1f\"/>",
-									$next[0], $protData{$next[0]}->[0], $protData{$next[0]}->[3], $protData{$next[0]}->[1], $protData{$next[0]}->[2], $GENE_NAMES{$next[0]}, $next[1],
+								$results{$_}->{1}->[-1]->[$k-1] .= sprintf "\n<alternative_protein protein=\"%s\" protein_descr=\"%s\" num_tol_term=\"%d\" peptide_prev_aa=\"%s\" peptide_next_aa=\"%s\" weight=\"%0.2f\" nsp=\"%0.1f\"/>",
+									$next[0], $protData{$next[0]}->[0], $protData{$next[0]}->[3], $protData{$next[0]}->[1], $protData{$next[0]}->[2], $next[1],
 									$PROTPROPH_INFO->{$strip1}->{$next[0]}->[2];
 								$index++;							
 							}
@@ -1924,7 +1834,7 @@ if(! ($OUTPUT_PEPXML eq '')) {
 					for(my $k = 0; $k < @{$results{$_}->{2}->[-1]}; $k++) {
 						if($results{$_}->{2}->[-1]->[$k] =~ /(\<linked\_peptide.*?peptide\_prev\_aa\=\")\S(\" peptide\_next\_aa\=\")\S(\" protein=\")\S+(\".*?num\_tol\_term\=\")\d(\".*?protein\_descr\=\").*?(\".*)$/) {
 							$results{$_}->{2}->[-1]->[$k] = $1 . $protData{$protInfo->[2]}->[1] . $2 . $protData{$protInfo->[2]}->[2] . $3 . $protInfo->[2] . $4 . 
-								$protData{$protInfo->[2]}->[3] . $5 . $protData{$protInfo->[2]}->[0] . (sprintf "\" gene=\"%s\" weight=\"%0.2f\" nsp=\"%0.1f", $GENE_NAMES{$protInfo->[2]}, $PROTPROPH_INFO->{$strip2}->{$protInfo->[2]}->[0], $PROTPROPH_INFO->{$strip2}->{$protInfo->[2]}->[2]) . $6;
+								$protData{$protInfo->[2]}->[3] . $5 . $protData{$protInfo->[2]}->[0] . (sprintf "\" weight=\"%0.2f\" nsp=\"%0.1f", $PROTPROPH_INFO->{$strip2}->{$protInfo->[2]}->[0], $PROTPROPH_INFO->{$strip2}->{$protInfo->[2]}->[2]) . $6;
 						}
 						elsif($results{$_}->{2}->[-1]->[$k] =~ /\<alternative\_protein/) {
 							if($index > $#{$protInfo->[3]}) {
@@ -1933,8 +1843,8 @@ if(! ($OUTPUT_PEPXML eq '')) {
 							}
 							else {
 								my @next = split(":", $protInfo->[3]->[$index]);
-								$results{$_}->{2}->[-1]->[$k] = sprintf "<alternative_protein protein=\"%s\" protein_descr=\"%s\" num_tol_term=\"%d\" peptide_prev_aa=\"%s\" peptide_next_aa=\"%s\" gene=\"%s\" weight=\"%0.2f\" nsp=\"%0.1f\"/>",
-									$next[0], $protData{$next[0]}->[0], $protData{$next[0]}->[3], $protData{$next[0]}->[1], $protData{$next[0]}->[2], $GENE_NAMES{$next[0]}, $next[1],
+								$results{$_}->{2}->[-1]->[$k] = sprintf "<alternative_protein protein=\"%s\" protein_descr=\"%s\" num_tol_term=\"%d\" peptide_prev_aa=\"%s\" peptide_next_aa=\"%s\" weight=\"%0.2f\" nsp=\"%0.1f\"/>",
+									$next[0], $protData{$next[0]}->[0], $protData{$next[0]}->[3], $protData{$next[0]}->[1], $protData{$next[0]}->[2], $next[1],
 									$PROTPROPH_INFO->{$strip2}->{$next[0]}->[2];
 								$index++;
 							}
@@ -1942,8 +1852,8 @@ if(! ($OUTPUT_PEPXML eq '')) {
 						elsif(/<modification_info/) {
 							while($k > 0 && $index < @{$protInfo->[3]}) {
 								my @next = split(":", $protInfo->[3]->[$index]);
-								$results{$_}->{2}->[-1]->[$k-1] .= sprintf "\n<alternative_protein protein=\"%s\" protein_descr=\"%s\" num_tol_term=\"%d\" peptide_prev_aa=\"%s\" peptide_next_aa=\"%s\" gene=\"%s\" weight=\"%0.2f\" nsp=\"%0.1f\"/>",
-									$next[0], $protData{$next[0]}->[0], $protData{$next[0]}->[3], $protData{$next[0]}->[1], $protData{$next[0]}->[2], $GENE_NAMES{$next[0]}, $next[1],
+								$results{$_}->{2}->[-1]->[$k-1] .= sprintf "\n<alternative_protein protein=\"%s\" protein_descr=\"%s\" num_tol_term=\"%d\" peptide_prev_aa=\"%s\" peptide_next_aa=\"%s\" weight=\"%0.2f\" nsp=\"%0.1f\"/>",
+									$next[0], $protData{$next[0]}->[0], $protData{$next[0]}->[3], $protData{$next[0]}->[1], $protData{$next[0]}->[2], $next[1],
 									$PROTPROPH_INFO->{$strip2}->{$next[0]}->[2];
 								$index++;							
 							}
@@ -2023,7 +1933,6 @@ if(! ($OUTPUT_PEPXML eq '')) {
 # now print out the distributions
 printf STDERR "Distributions after %d iterations\n", $iter - 1;
 printDistributions(\%posdists, \%negdists, *STDERR);
-printf STDERR "decoy fdr multiplier: %0.2f\n\n", $num_lows if($compute_decoy_fdr);
 my $fraction_intra = exists $posdists{'intra'} ? (sprintf " (%0.0f%% intraprotein)", $posdists{'intra'}->{1} * 100) : "";
 printf STDERR "Computed probabilities with estimated %0.0f correct cross-links%s written to output file%s %s%s\n\n", $total_correct, $fraction_intra,
 	$OUTPUT_PEPXML eq '' ? '' : 's', $outfile, $OUTPUT_PEPXML eq '' ? '' : ' and ' . $OUTPUT_PEPXML . '.xml';
@@ -2229,7 +2138,7 @@ for(my $k = 0; $k < @prots1; $k++) {
 for(my $k = 0; $k < @prots2; $k++) {
 	$result[1] = 0 if($prots2[$k] !~ /rev\_/);
 }
-return $result[0] || $result[1];
+return $result[0] || $result[1] ? 1 : 0;
 }
 
 sub getPeptideLength {
@@ -2252,7 +2161,7 @@ for(my $k = 0; $k < @prots1; $k++) {
 for(my $k = 0; $k < @prots2; $k++) {
 	$result[1] = 0 if($prots2[$k] !~ /rev\_/);
 }
-return $result[0] && $result[1];
+return $result[0] && $result[1] ? 1 : 0;
 }
 
 sub getPeptideLength {
@@ -2345,7 +2254,6 @@ while(<FILE>) {
 				($OUTPUT_DECOYS || $prot !~ /rev\_/) &&
 				$wt > 0) {
 				$PROTPROPH_INFO->{$pep}->{$prot} = [$wt/@prots, $degen, $nsp];
-				$GENE_NAMES{$prot} = '' if(exists $PEP_MAXPROBS{$pep} && $PEP_MAXPROBS{$pep} >= 0.05);
 			}
 		}
 	}
@@ -2442,111 +2350,4 @@ else {
 }
 }
 
-# this can be bypassed if desired
-sub setGeneNamesFromUniprot {
-my @genes = keys %GENE_NAMES;
-my $tot = 0;
-my %APPENDED_NAMES = (); # record the new ones and append to file
-my %orgs = ("HUMAN" => "Homo sapiens (Human)", "YEAST" => "Saccharomyces cerevisiae (strain ATCC 204508 / S288c) (Baker's yeast)", 
-			"ARATH" => "Arabidopsis thaliana (Mouse-ear cress)", "MOUSE" => "Mus musculus (Mouse)",
-			"BOVIN" => "Bos taurus (Bovine)", "ECOLI" => "Escherichia coli (strain K12)");
-if(-e $UNIPROT_CONVERSION_FILE) {
-	open(UNI, $UNIPROT_CONVERSION_FILE) or die "cannot read $UNIPROT_CONVERSION_FILE $!\n";
-	my $first = 1;
-	while(<UNI>) {
-		if($first) {
-			$first = 0;
-		}
-		else {
-			chomp();
-			my @parsed = split("\t");
-			if(exists $GENE_NAMES{"sp|".$parsed[0]."|".$parsed[1]}) {
-				$GENE_NAMES{"sp|".$parsed[0]."|".$parsed[1]} = $parsed[4] eq '' ? '-' : (split(" ", $parsed[4]))[0];
-				$tot++;
-			}
-			elsif(exists $GENE_NAMES{"tr|".$parsed[0]."|".$parsed[1]}) {
-				$GENE_NAMES{"tr|".$parsed[0]."|".$parsed[1]} = $parsed[4] eq '' ? '-' : (split(" ", $parsed[4]))[0];
-				$tot++;
-			}
-		}
-	}
-	close(UNI);
-	printf STDERR "Read in %d genes from %s\n", $tot, $UNIPROT_CONVERSION_FILE;
-}
-for(my $k = 0; $k < @genes; $k++) {
-	if($GENE_NAMES{$genes[$k]} eq '') {
-		my @next = getGeneNameFromUniprot($genes[$k]);
-		$GENE_NAMES{$genes[$k]} = getGeneNameFromUniprot($genes[$k]);
-		if($genes[$k] =~ /^sp\|(\S+?)\|(\S+\_)(\S+)$/) {
-			$APPENDED_NAMES{$1} = sprintf "%s\t%s\tunknown\t\t%s\t%s", $1, $2 . $3, 
-				($GENE_NAMES{$genes[$k]} eq '-' ? "" : $GENE_NAMES{$genes[$k]}), (exists $orgs{$3} ? $orgs{$3} : "");
-		}
-		$tot++ if(! ($GENE_NAMES{$genes[$k]} eq ''));
-	}
-	elsif($GENE_NAMES{$genes[$k]} eq '-') {
-		$GENE_NAMES{$genes[$k]} = ""; # revert
-	}
-}
-printf STDERR "Obtained gene names for $tot entries\n";
-if(scalar keys %APPENDED_NAMES > 0) {
-	open(CONV, ">>$UNIPROT_CONVERSION_FILE") or die "cannot append to $UNIPROT_CONVERSION_FILE $!\n";
-	foreach(keys %APPENDED_NAMES) {
-		printf CONV "%s\n", $APPENDED_NAMES{$_};
-	}
-	close(CONV);
-	printf STDERR "Appended %d new entries to %s\n", scalar keys %APPENDED_NAMES, $UNIPROT_CONVERSION_FILE;
-}
-}
 
-# assumes the original search database contained protein names in uniprot format
-sub getGeneNameFromUniprot {
-(my $prot) = @_;
-if($prot =~ /^sp\|(\S+?)\|/) {
-	my $uni = $1;
-	my $output = "uniprot.txt";
-	my $command = "wget -O $output \"http://www.uniprot.org/uniprot/$uni\" > tmp.out";
-	system($command);
-	open(UNI, $output) or die "cannot open $output for $command\n";
-	while(<UNI>) {
-		if(/Gene\<\/div\>\<div id\=\"content\-gene\" class\=\"entry\-overview\-content\"\>\<h2\>(\S+?)\<\/h2\>/) {
-			my $gene = $1;
-			printf STDERR "Found gene $gene for $uni!\n";
-			close(UNI);
-			
-			unlink $output if(-e $output);
-			return $gene;
-		}
-	}
-	close(UNI);
-	unlink $output if(-e $output);
-	return '';
-}
-elsif($prot =~ /^tr\|(\S+?)\|/) {
-	my $uni = $1;
-	# still here, go to uniprot manually
-	my $output = "uniprot.txt";
-	my $command = "wget -O $output \"http://www.uniprot.org/uniprot/$uni\" > tmp.out";
-	system($command);
-	open(UNI, $output) or die "cannot open $output for $command\n";
-	while(<UNI>) {
-		if(/Gene\<\/div\>\<div id\=\"content\-gene\" class\=\"entry\-overview\-content\"\>\<h2\>(\S+?)\<\/h2\>/) {
-			my $gene = $1;
-			printf STDERR "Found gene $gene for $uni!\n";
-			close(UNI);
-			
-			unlink $output if(-e $output);
-			return $gene;
-		}
-	}
-	close(UNI);
-	unlink $output if(-e $output);
-	return '';
-}
-else {
-	die "Problem with protein name $prot\n";
-}
-die "Illegal protein format without uniprot identifier (sp|xxxx|...) or (tr|xxxx|...): $prot\n";
-return '';
-
-
-}
