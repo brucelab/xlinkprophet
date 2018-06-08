@@ -20,6 +20,11 @@ Usage:   XLinkProphet.pl < PeptideProphet or iProphet pepXML file > (options)
 
 Type:    XLinkProphet.pl to view all options
 
+The output is a pepXML and Tab delimited .xls file with suffix -xl.pep.xml and -xl.xls, respectively.
+
+The XLinkProphet probaiblity assigned to each result is indicated as the PeptideProphet 'probability' (rest assured, it is actually the XLinkProphet probability), while the non-redundant crosslink level is indicated as the result's 'composite_probability' score.
+
+
 Run XLinkProphet on the ReACT analysis of the Control data set, consisting of 9 search result pepXML files and 9 react2.xls pairing files that link up the search results of the crosslink's 2 released peptides:
 
 Download all Control Data Set files in the ReACT directory to a directory on your computer, along with XLinkProphet.pl.  You will need the Trans-Proteomic Pipeline (https://sourceforge.net/projects/sashimi/) on your computer as well.
