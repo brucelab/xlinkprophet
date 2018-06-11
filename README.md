@@ -17,7 +17,7 @@ Note that the XLinkProphet probability for the time being is encoded as 'Peptide
 
 Usage:   **XLinkProphet.pl < PeptideProphet or iProphet pepXML file > (options)**
 
-Type:    **XLinkProphet.pl to view all options**
+ Type:   **XLinkProphet.pl to view all options**
 
 The output is a pepXML and Tab delimited .xls file with suffix -xl.pep.xml and -xl.xls, respectively.
 
@@ -39,7 +39,7 @@ In a terminal, go into the directory with your data and type the following three
 Your final output will be a pepXML file iprophet-xl.pep.xml and a tab delimited file iprophet-xl.xls.
 
 ![#1589F0](https://placehold.it/15/1589F0/000000?text=+)
-Run XLinkProphet on the Mango analysis of the protein mixture test data set, consisting of 9 Comet search result pepXML files and 9 peaks pairing files that link up the search results of the crosslink's 2 released peptides:
+**Run XLinkProphet on the Mango analysis of the protein mixture test data set**, consisting of 9 Comet search result pepXML files and 9 peaks pairing files that link up the search results of the crosslink's 2 released peptides:
 
 Download all Control Data Set files in the Mango directory to a directory on your computer, along with XLinkProphet.pl.  You will need the Trans-Proteomic Pipeline (https://sourceforge.net/projects/sashimi/) on your computer as well.
 
@@ -47,11 +47,11 @@ You will first have to untar all the pep.xml files which are in .gz format.  In 
 
 Now you're ready to run XLinkProphet.  Type the following three commands in succession:
 
-1. Combine the 9 search result files into a single interact.pep.xml file, and run PeptideProphet to assign probabilities that each search result is correct:  <p style='color:red'>xinteract -OEAdP -p0 -PPM -l6 -drev_ 102617_ADH_BDP_mango_2hr_1.pep.xml 102617_alpha_casein_BDP_mango_2hr_1.pep.xml 102617_alpha_lactalbumin_BDP_mango_2hr_1.pep.xml 102617_beta_casein_BDP_mango_2hr_1.pep.xml 102617_beta_lactoglobulin_BDP_mango_2hr_1.pep.xml 102617_cytochromeC_BDP_mango_2hr_1.pep.xml 102617_histones_BDP_mango_2hr_1.pep.xml 102617_myoglobin_BDP_mango_2hr_1.pep.xml 112817_BSA_BDP_mango_2hr_1.pep.xml</p>
+1. Combine the 9 search result files into a single interact.pep.xml file, and run PeptideProphet to assign probabilities that each search result is correct:  **<p style='color:red'>xinteract -OEAdP -p0 -PPM -l6 -drev_ 102617_ADH_BDP_mango_2hr_1.pep.xml 102617_alpha_casein_BDP_mango_2hr_1.pep.xml 102617_alpha_lactalbumin_BDP_mango_2hr_1.pep.xml 102617_beta_casein_BDP_mango_2hr_1.pep.xml 102617_beta_lactoglobulin_BDP_mango_2hr_1.pep.xml 102617_cytochromeC_BDP_mango_2hr_1.pep.xml 102617_histones_BDP_mango_2hr_1.pep.xml 102617_myoglobin_BDP_mango_2hr_1.pep.xml 112817_BSA_BDP_mango_2hr_1.pep.xml</p>**
 
-2. Run iProphet to further validate the search results with additional models, assigning revised probabilities that the search results are correct in output file iprophet.pep.xml:   <p style='color:red'>InterProphetParser interact.pep.xml iprophet.pep.xml</p>
+2. Run iProphet to further validate the search results with additional models, assigning revised probabilities that the search results are correct in output file iprophet.pep.xml:   **<p style='color:red'>InterProphetParser interact.pep.xml iprophet.pep.xml</p>**
 
-3. Run XLinkProphet:   <p style='color:red'>XLinkProphet.pl iprophet.pep.xml</p>
+3. Run XLinkProphet:   **<p style='color:red'>XLinkProphet.pl iprophet.pep.xml</p>**
 
 Your final output will be a pepXML file iprophet-xl.pep.xml and a tab delimited file iprophet-xl.xls.
 
