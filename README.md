@@ -2,8 +2,7 @@
 ![#c5f015](https://placehold.it/15/c5f015/000000?text=+)
 Validator of XL-MS crosslinks obtained using cleavable crosslinkers
 
-Download files XLinkProphet.pl and uniprot_conversion_table.txt, and then modify XLinkProphet.pl line 73 to include the 
-full path location of uniprot_conversion_table.txt on your computer.  
+Download file XLinkProphet.pl for use on any platform.  
 
 Running XLinkProphet on a cleavable crosslink dataset requires:
 1. Validated search results of the cleaved peptides, using PeptideProphet and optional subsequent iProphet.
@@ -14,8 +13,7 @@ precursor charge.  This information is necessary for XLinkProphet to properly pa
 
 
 The input file is the validated search results in pepXML format.  The output is validated crosslinks in Kojak pepXML format.
-Note that the XLinkProphet probability is encoded as PeptideProphet in the output so that multiple output files can be
-combined with iProphet.
+Note that the XLinkProphet probability for the time being is encoded as 'PeptideProphet' in the output so that multiple output files can be combined with iProphet.
 
 Usage:   XLinkProphet.pl < PeptideProphet or iProphet pepXML file > (options)
 
