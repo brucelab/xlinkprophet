@@ -17,7 +17,7 @@ Note that the XLinkProphet probability for the time being is encoded as 'Peptide
 
 Usage:   **XLinkProphet.pl < PeptideProphet or iProphet pepXML file > (options)**
 
- Type:   **XLinkProphet.pl to view all options**
+ Type:    **XLinkProphet.pl to view all options**
 
 The output is a pepXML and Tab delimited .xls file with suffix -xl.pep.xml and -xl.xls, respectively.
 
