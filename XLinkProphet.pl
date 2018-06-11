@@ -22,6 +22,7 @@ my %MODEL_BINS = ( 	'massdiff_bin' => 5,
 # these are modified peptide masses indicative of the crosslink stump
 my @CROSSLINK_MODS = ({'n' => 198, 'K' => 325}); # light values for our crosslinker
 my $REPORTERMASS = 751.40508; # for BHP
+my $DECOY_PREFIX = 'rev_';
 
 if(@ARGV == 0) {
 	printf STDERR "\n";
@@ -36,6 +37,7 @@ if(@ARGV == 0) {
 	printf STDERR "          PAIRFILE_SUFF=xxx (Suffix appended to search result pepXML file names for pairing files containing spectrum scan numbers of 2 peptides plus mass and charge of crosslink parent)\n";
 	printf STDERR "          CROSSLINK_MODS=x:202,y:329,xxx (supplement default values of n:198 and K325 with specified values for n/c termini or AA x,y,z...)\n";
 	printf STDERR "          REPORTERMASS=xxx (mass of crosslink reporter [default: $REPORTERMASS for BHP])\n";
+	printf STDERR "          DECOY_PREFIX=xxx (prefix of protein name indicating a decoy [default: $DECOY_PREFIX])\n";
 	printf STDERR "\n";
 	printf STDERR " models:  %s\n", join(", ", sort {$a cmp $b} keys %MODELS);
 	printf STDERR "\n";
@@ -142,10 +144,15 @@ for(my $k = 1; $k < @ARGV; $k++) {
 		$REPORTERMASS = $1;
 		printf STDERR "Setting REPORTERMASS to %s\n", $REPORTERMASS; #exit(1);
 	}
+	elsif($ARGV[$k] =~ /^DECOY_PREFIX\=(\S+)/) {
+		$DECOY_PREFIX = $1;
+		printf STDERR "Setting DECOY_PREFIX to %s\n", $DECOY_PREFIX; #exit(1);
+	}
 	else {
 		die "Error: $ARGV[$k] is not valid option\n";
 	}
 }
+$DECOY_PREFIX =~ s/\_/\\\_/g;
 
 my $outfile = $file =~ /^(\S+)\.pep.xml$/ ? $1 . $OUTPUT_SUFF. $SPEC_TEXT. '-xl.xls' : die "Error: $file is not the required .pep.xml type\n"; #$ARGV[1];
 
@@ -1382,6 +1389,7 @@ if($compute_decoy_fdr) {
 				$ROC_IND++;
 			}
 		}
+		exit(1) if($probabilities{$sorted[$k]} < 0.9);
 		$prev_fdr = $fdr;
 		$lastprob = $nextprob;
 	} # next sorted
@@ -2132,10 +2140,10 @@ my @prots1 = split(",", $prot1);
 my @prots2 = split(",", $prot2);
 my @result = (1, 1); # assume have decoy in both unless proven false
 for(my $k = 0; $k < @prots1; $k++) {
-	$result[0] = 0 if($prots1[$k] !~ /rev\_/);
+	$result[0] = 0 if($prots1[$k] !~ /^$DECOY_PREFIX/);
 }
 for(my $k = 0; $k < @prots2; $k++) {
-	$result[1] = 0 if($prots2[$k] !~ /rev\_/);
+	$result[1] = 0 if($prots2[$k] !~ /^$DECOY_PREFIX/);
 }
 return $result[0] || $result[1] ? 1 : 0;
 }
@@ -2155,10 +2163,10 @@ my @prots1 = split(",", $prot1);
 my @prots2 = split(",", $prot2);
 my @result = (1, 1); # assume have decoy in both unless proven false
 for(my $k = 0; $k < @prots1; $k++) {
-	$result[0] = 0 if($prots1[$k] !~ /rev\_/);
+	$result[0] = 0 if($prots1[$k] !~ /^$DECOY_PREFIX/);
 }
 for(my $k = 0; $k < @prots2; $k++) {
-	$result[1] = 0 if($prots2[$k] !~ /rev\_/);
+	$result[1] = 0 if($prots2[$k] !~ /^$DECOY_PREFIX/);
 }
 return $result[0] && $result[1] ? 1 : 0;
 }
@@ -2250,7 +2258,7 @@ while(<FILE>) {
 			next if($prot =~ /^rev\_/);
 			if(exists $PROTPROPH_INFO->{$pep} && 
 				! exists $PROTPROPH_INFO->{$pep}->{$prot} &&
-				($OUTPUT_DECOYS || $prot !~ /rev\_/) &&
+				($OUTPUT_DECOYS || $prot !~ /^$DECOY_PREFIX/) &&
 				$wt > 0) {
 				$PROTPROPH_INFO->{$pep}->{$prot} = [$wt/@prots, $degen, $nsp];
 			}
@@ -2348,5 +2356,7 @@ else {
 	die "Error with winner $winner\n";
 }
 }
+
+
 
 
