@@ -15,26 +15,26 @@ precursor charge.  This information is necessary for XLinkProphet to properly pa
 The input file is the validated search results in pepXML format.  The output is validated crosslinks in Kojak pepXML format.
 Note that the XLinkProphet probability for the time being is encoded as 'PeptideProphet' in the output so that multiple output files can be combined with iProphet.
 
-Usage:   XLinkProphet.pl < PeptideProphet or iProphet pepXML file > (options)
+Usage:   **XLinkProphet.pl < PeptideProphet or iProphet pepXML file > (options)**
 
-Type:    XLinkProphet.pl to view all options
+Type:    **XLinkProphet.pl to view all options**
 
 The output is a pepXML and Tab delimited .xls file with suffix -xl.pep.xml and -xl.xls, respectively.
 
 The XLinkProphet probaiblity assigned to each result is indicated as the PeptideProphet 'probability' (rest assured, it is actually the XLinkProphet probability), while the non-redundant crosslink level is indicated as the result's 'composite_probability' score.
 
 ![#f03c15](https://placehold.it/15/f03c15/000000?text=+) 
-Run XLinkProphet on the ReACT analysis of the protein mixture test data set, consisting of 9 Comet search result pepXML files and 9 react2.xls pairing files that link up the search results of the crosslink's 2 released peptides:
+**Run XLinkProphet on the ReACT analysis of the protein mixture test data set**, consisting of 9 Comet search result pepXML files and 9 react2.xls pairing files that link up the search results of the crosslink's 2 released peptides:
 
 Download all Control Data Set files in the ReACT directory to a directory on your computer, along with XLinkProphet.pl.  You will need the Trans-Proteomic Pipeline (https://sourceforge.net/projects/sashimi/) on your computer as well.
 
 In a terminal, go into the directory with your data and type the following three commands in succession:
 
-1. Combine the 9 search result files into a single interact.pep.xml file, and run PeptideProphet to assign probabilities that each search result is correct:  <p style='color:red'>xinteract -OEAdP -p0 -PPM -l6 -drev_ 082117_BSA_1mMBDP_2hr_1.pep.xml 101117_a-casein_BDP_2hr_1.pep.xml 101117_a-lactalbumin_BDP_2hr_1.pep.xml 101117_ADH_BDP_2hr_1.pep.xml 101117_b-casein_BDP_2hr_1.pep.xml 101117_b-lactoglobulin_BDP_2hr_1.pep.xml 101117_cytochromeC_BDP_2hr_1.pep.xml 101117_histone_BDP_2hr_1.pep.xml 101117_myoglobin_BDP_2hr_1.pep.xml</p>
+1. Combine the 9 search result files into a single interact.pep.xml file, and run PeptideProphet to assign probabilities that each search result is correct:  **<p style='color:red'>xinteract -OEAdP -p0 -PPM -l6 -drev_ 082117_BSA_1mMBDP_2hr_1.pep.xml 101117_a-casein_BDP_2hr_1.pep.xml 101117_a-lactalbumin_BDP_2hr_1.pep.xml 101117_ADH_BDP_2hr_1.pep.xml 101117_b-casein_BDP_2hr_1.pep.xml 101117_b-lactoglobulin_BDP_2hr_1.pep.xml 101117_cytochromeC_BDP_2hr_1.pep.xml 101117_histone_BDP_2hr_1.pep.xml 101117_myoglobin_BDP_2hr_1.pep.xml</p>**
 
-2. Run iProphet to further validate the search results with additional models, assigning revised probabilities that the search results are correct in output file iprophet.pep.xml:   <p style='color:red'>InterProphetParser interact.pep.xml iprophet.pep.xml</p>
+2. Run iProphet to further validate the search results with additional models, assigning revised probabilities that the search results are correct in output file iprophet.pep.xml:   **<p style='color:red'>InterProphetParser interact.pep.xml iprophet.pep.xml</p>**
 
-3. Run XLinkProphet using the LOCAL_REACT setting to not use the raw data file locations in the search results to find the react2.xls pairing files, but rather find them in the current directory:   <p style='color:red'>XLinkProphet.pl iprophet.pep.xml LOCAL_REACT</p>
+3. Run XLinkProphet using the LOCAL_REACT setting to not use the raw data file locations in the search results to find the react2.xls pairing files, but rather find them in the current directory:   **<p style='color:red'>XLinkProphet.pl iprophet.pep.xml LOCAL_REACT</p>**
 
 Your final output will be a pepXML file iprophet-xl.pep.xml and a tab delimited file iprophet-xl.xls.
 
