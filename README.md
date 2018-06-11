@@ -1,6 +1,6 @@
 # xlinkprophet
 ![#14ef6f](https://placehold.it/15/14ef6f/000000?text=+)
-Validator of XL-MS crosslinks obtained using cleavable crosslinkers
+**Validator of XL-MS crosslinks obtained using cleavable crosslinkers**
 
 Download file XLinkProphet.pl for use on any platform.  
 
