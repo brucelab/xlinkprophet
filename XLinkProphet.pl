@@ -2284,11 +2284,11 @@ my @nextProt1 = keys %{$pepProtptr->{$pep1}};
 my @nextProt2 = keys %{$pepProtptr->{$pep2}};
 for(my $k = 0; $k < @nextProt1; $k++) {
 	for(my $j = 0; $j < @nextProt2; $j++) {
-		$pairs{$k."_".$j} = [$pepProtptr->{$pep1}->{$nextProt1[$k]}->[0]*$pepProtptr->{$pep2}->{$nextProt2[$j]}->[0], ($nextProt1[$k] eq $nextProt2[$j] ? 1 : 0), $pepProtptr->{$pep1}->{$nextProt1[$k]}->[2]+$pepProtptr->{$pep2}->{$nextProt2[$j]}->[2]];
+		$pairs{$k."_".$j} = [$pepProtptr->{$pep1}->{$nextProt1[$k]}->[0]*$pepProtptr->{$pep2}->{$nextProt2[$j]}->[0], ($nextProt1[$k] eq $nextProt2[$j] ? 1 : 0), $pepProtptr->{$pep1}->{$nextProt1[$k]}->[2]+$pepProtptr->{$pep2}->{$nextProt2[$j]}->[2], substr($nextProt1[$k],10) . '_' . substr($nextProt2[$j],10)];
 	}
 } # next k
 		# now sort them by wt
-my @sorted = sort {$pairs{$b}->[0] <=> $pairs{$a}->[0] or $pairs{$b}->[1] <=> $pairs{$a}->[1] or $pairs{$b}->[2] <=> $pairs{$a}->[2]} keys %pairs;
+my @sorted = sort {$pairs{$b}->[0] <=> $pairs{$a}->[0] or $pairs{$b}->[1] <=> $pairs{$a}->[1] or $pairs{$b}->[2] <=> $pairs{$a}->[2] or $pairs{$a}->[3] cmp $pairs{$b}->[3]} keys %pairs;
 
 # will have to order prots1 and prots2 also so can assign the alternatives in order
 my %sorted_prots1 = ();
