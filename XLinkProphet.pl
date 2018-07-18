@@ -2284,7 +2284,7 @@ my @nextProt1 = keys %{$pepProtptr->{$pep1}};
 my @nextProt2 = keys %{$pepProtptr->{$pep2}};
 for(my $k = 0; $k < @nextProt1; $k++) {
 	for(my $j = 0; $j < @nextProt2; $j++) {
-		$pairs{$k."_".$j} = [$pepProtptr->{$pep1}->{$nextProt1[$k]}->[0]*$pepProtptr->{$pep2}->{$nextProt2[$j]}->[0], ($nextProt1[$k] eq $nextProt2[$j] ? 1 : 0), $pepProtptr->{$pep1}->{$nextProt1[$k]}->[2]+$pepProtptr->{$pep2}->{$nextProt2[$j]}->[2], substr($nextProt1[$k],10) . '_' . substr($nextProt2[$j],10)];
+		$pairs{$k."_".$j} = [$pepProtptr->{$pep1}->{$nextProt1[$k]}->[0]*$pepProtptr->{$pep2}->{$nextProt2[$j]}->[0], ($nextProt1[$k] eq $nextProt2[$j] ? 1 : 0), $pepProtptr->{$pep1}->{$nextProt1[$k]}->[2]+$pepProtptr->{$pep2}->{$nextProt2[$j]}->[2], $nextProt1[$k] . '_' . $nextProt2[$j]];
 	}
 } # next k
 		# now sort them by wt
