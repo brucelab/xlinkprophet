@@ -2288,7 +2288,7 @@ for(my $k = 0; $k < @nextProt1; $k++) {
 	}
 } # next k
 		# now sort them by wt
-my @sorted = sort {$pairs{$b}->[0] <=> $pairs{$a}->[0] or $pairs{$b}->[1] <=> $pairs{$a}->[1] or $pairs{$b}->[2] <=> $pairs{$a}->[2] or $pairs{$a}->[3] cmp $pairs{$b}->[3]} keys %pairs;
+my @sorted = sort {$pairs{$b}->[0] <=> $pairs{$a}->[0] or $pairs{$b}->[1] <=> $pairs{$a}->[1] or $pairs{$b}->[2] <=> $pairs{$a}->[2]} keys %pairs;
 
 # will have to order prots1 and prots2 also so can assign the alternatives in order
 my %sorted_prots1 = ();
