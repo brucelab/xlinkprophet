@@ -78,7 +78,6 @@ if($ARGV[0] =~ /^LIGHT\=(\S+)/) {
 	}
 	$option_startind = 2;
 	$light_heavy = 1;
-	#printf "Here with heavy files %s\n", join(",", @heavy_files); exit(1);
 }
 else {
 	@files = glob($ARGV[0]);
