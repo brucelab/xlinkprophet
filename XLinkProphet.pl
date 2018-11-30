@@ -226,9 +226,16 @@ else {
 
 
 # now get the crosslinkstump mods without decimal places that appear in the search results modified peptide sequence
+my %seen = ();
 for(my $z = 0; $z < @CROSSLINK_STUMP_MODS; $z++) {
 	my %next = ();
 	my @nextstumps = keys %{$CROSSLINK_STUMP_MODS[$z]};
+	my $next = "";
+	for(my $k = 0; $k < @nextstumps; $k++) {
+		$next .= $nextstumps[$k] . ":" . $CROSSLINK_STUMP_MODS[$z]{$nextstumps[$k]} . " ";
+	}
+	next if(exists $seen{$next});
+	$seen{$next}++;
 	for(my $j = 0; $j < @nextstumps; $j++) {
 		$next{$nextstumps[$j]} = sprintf "%0.".$NUM_MODPEP_DECIMALS."f", $CROSSLINK_STUMP_MODS[$z]->{$nextstumps[$j]};
 	}
