@@ -946,6 +946,11 @@ if($pprophfile =~ /xml$/) {
 			$SPEC_TOT++;
 			
   			if($PAIRING eq 'Mango' && $spectrum =~ /^(\S+)(\_\d\d\d\_)([A,B])\.(\d+)\.(\d+)(\.\d)$/) {
+				$base = $1;
+				if($LIGHT_HEAVY) {
+					$base = $current_run;
+				}
+
 				my $pref = $base . $2;
 				my $index = $3 eq 'A' ? 1 : $3 eq 'B' ? 2 : die "Error: $3 is not A or B, cannot determine index\n";
 				my $scan1 = $4;
