@@ -3,26 +3,29 @@
 use strict;
 use POSIX;
 
-my $SELF = 'runXLinkProphet.pl';
-my $XLINKPROPHET = "/full/path/location/of/distrXLinkProphet2.pl";
+my $SELF = 'runXLinkProphet_devxxx.pl';
+my $XLINKPROPHET = "c:\\Users\\fullpathto\\XLinkProphet_devxxx.pl";
+
 
 if(@ARGV == 0) {
+	my $ARG_DELIMITER = $^O =~ /Win/ ? "\"" : "'";
 	printf STDERR "\n";
 	printf STDERR " usage:   $SELF < PepXML Files > ( options )\n";
 	printf STDERR "\n";
-	printf STDERR " e.g.:    \033[1mrunXLinkProphet.pl '*.pep.xml'\033[0m\n";
+	printf STDERR " e.g.:    \033[1mrunXLinkProphet.pl %s*.pep.xml%s\033[0m\n", $ARG_DELIMITER, $ARG_DELIMITER;
 	printf STDERR " options: TEST (to print all the commands of the analysis, including the input pepXML files, without running the analysis)\n";
 	printf STDERR "          PARAMS (to view xlinkprophet.params file sample contents)\n";
 	printf STDERR "          WRITEPARAMS (to write generic xlinkprophet.params file in current directory)\n";
 	printf STDERR "          OUTFILESUFF=xxx (add '-xxx' to the names of all files created during analysis, e.g. 'interact-xxx.pep.xml', 'iproph-xxx.pep.xml', 'iproph-xxx-xl.pep.xml')\n";
 	printf STDERR "          SAMPLEMAP=xxx (Filter input pepxml files for those present in the MasschroQ samplemap file)\n";
 	printf STDERR "          SPEC_LABEL=xxx (label spectrum tags so multiple instances of same spectrum are maintained [e.g. light and heavy searches])\n";
-	printf STDERR "          REPORTERMASS=xxx (neutral mass of crosslink reporter)\n";
+	printf STDERR "          REPORTERMASS=xxx (neutral mass of crosslink reporter [default: 751.40508 for BHP])\n";
 	printf STDERR " \033[1;32mor just released for combined light and heavy search results:\033[0;39m\n";
 	printf STDERR "          $SELF LIGHT=< Light/Shortarm PepXML Files > HEAVY=< Heavy/Longarm PepXML Files >( options )\n";
-	printf STDERR " e.g.:    \033[1mrunXLinkProphet.pl 'LIGHT=light_dir/*.pep.xml' 'HEAVY=heavy_dir/*.pep.xml'\033[0m\n";
+	printf STDERR " e.g.:    \033[1mrunXLinkProphet.pl %sLIGHT=light_dir/*.pep.xml%s %sHEAVY=heavy_dir/*.pep.xml%s\033[0m\n", $ARG_DELIMITER, $ARG_DELIMITER, $ARG_DELIMITER, $ARG_DELIMITER;
 	printf STDERR "          IQPIR_REPORTERMASSES=xxx:yyy,www:zzz,... (specify reporter masses yyy and zzz corresponding to lysine stump modification masses xxx and yyy, respectively, [with at least 2 decimal places, e.g. 325.13], e.g. IQPIR_REPORTERMASSES=325.13:811.455947,327.13:807.442528)\n";
-	printf STDERR "          DSSO [equivalent to IQPIR_REPORTERMASSES=214.077603:-13.96152,182.105523:49.98264]\n";
+	printf STDERR "          DSSO [equivalent to IQPIR_REPORTERMASSES=214.077603:-13.96152,182.105523:49.98264]\n"; # long arm, short arm  214.037603
+	printf STDERR "          SILAC_MODS=K:xxx,R:yyy (Specify silac heavy mass difference xxx for lysine and yyy for arginine [default values K:136.11,R:162.12])\n";
 	printf STDERR "\n";
 	printf STDERR "          ReACT: react2.xls files generated using react2csv options -c9999 -F must be present alongside input pepXML files\n";
 	printf STDERR "          Mango: peaks files must be present alongside input pepXML files\n\n";
@@ -49,10 +52,16 @@ my $EMAIL = "";
 my $XL_PROPH_OPTIONS = "";
 my $TEST = 0;
 my $pairfile = 0;
-my $SAMPLEMAPFILES = {};
+my $SAMPLEMAPFILES = {}; #getSamplemapFiles("/net/gs/vol4/shared/brucelab/search/jdchavez/Jimmy_linux_MCQ_test/SUBSET2/sample_map.txt"); #{};
 my $FILTER_PEPXML_WITHOUT_PAIRFILE = 1;
 my $MIN_PEP_LEN = "";
-
+my $FORCE_NTT2 = 0;
+my $SEND_EMAIL = 1;
+my $STUMP_MOD = "";
+my $DIR_DIVISOR_REGX = $^O =~ /Win/ ? "\\\\" : "\/";
+my $DIR_DIVISOR = $^O =~ /Win/ ? "\\" : "/";
+my $IS_WINDOWS = $^O =~ /Win/;
+my @COMMANDS = ();
 
 if($ARGV[0] eq 'PARAMS' || (@ARGV > 1 && $ARGV[1] eq 'PARAMS')) {
 	displayParamsFile(\*STDOUT, "");
@@ -70,7 +79,6 @@ my @files = ();
 if($ARGV[0] =~ /^LIGHT\=(\S+)/) {
 	@light_files = glob($1);
 	if(@ARGV > 1 && $ARGV[1] =~ /^HEAVY\=(\S+)/) {
-	#printf "glob $1\n";
 		@heavy_files = glob($1);
 	}
 	else {
@@ -82,11 +90,12 @@ if($ARGV[0] =~ /^LIGHT\=(\S+)/) {
 else {
 	@files = glob($ARGV[0]);
 }
+
 my $suffix = "";
 
 my @DSSO_STUMP_MASSES = (0, 0); # short and long arm
 
-my $paramsfile = getcwd() . "/$PARAMSFILE";
+my $paramsfile = getcwd() . $DIR_DIVISOR . $PARAMSFILE;
 if(-e $paramsfile) {
 	$pairfile = readParams($paramsfile);
 }
@@ -98,6 +107,7 @@ else {
 	printf STDERR "Warning: using default run parameters in the absence of params file $paramsfile\n";
 }
 
+$XLINKPROPHET = "\"" . $XLINKPROPHET . "\"" if($IS_WINDOWS && $XLINKPROPHET =~ /\s/);
 my $exec = 1;
 my $all = 1;
 my $REPORTERMASS = "";
@@ -127,8 +137,19 @@ for(my $k = $option_startind; $k < @ARGV; $k++) {
 		printf STDERR "Setting REPORTERMASS to %s\n", $REPORTERMASS; #exit(1);
 	}
 	elsif($ARGV[$k] =~ /^IQPIR\_REPORTERMASSES\=(\S+)/) {
+		if(0 && $STUMP_MOD) {
+			printf "Error: comment out xlinker_stump_mod_masses in xlinkprophet.params file before running with the IQPIR_REPORTERMASSES option\n";
+			exit(1);
+		}
 		$IQPIR_REPORTERMASSES = $1;
 		printf STDERR "Setting IQPIR_REPORTERMASSES to %s\n", $IQPIR_REPORTERMASSES; #exit(1);
+		my @reporters = split(",", $IQPIR_REPORTERMASSES);
+		my @new_mods = ();
+		for(my $k = 0; $k < @reporters; $k++) {
+			my @next_mass = split(":", $reporters[$k]);
+			push(@new_mods, "K:" . $next_mass[0]);
+		}
+		$XL_PROPH_OPTIONS .= "CROSSLINK_MODS=" . join(",", @new_mods) . " ";
 	}
 	elsif($ARGV[$k] eq 'DSSO') {
 		$IQPIR_REPORTERMASSES = "182.105523:49.98264,214.077603:-13.96152";
@@ -143,7 +164,13 @@ for(my $k = $option_startind; $k < @ARGV; $k++) {
 			$XL_PROPH_OPTIONS .= "CROSSLINK_MODS=K:214.077603 ";
 		}
 	}
+	elsif($ARGV[$k] =~ /^SILAC\_MODS\=(\S+)/) {
+		printf STDERR "Setting SILAC_MODS to %s\n", $1; #exit(1);
+		$XL_PROPH_OPTIONS .= $ARGV[$k] . " ";
+	}
 }
+
+$XL_PROPH_OPTIONS .= $STUMP_MOD if($IQPIR_REPORTERMASSES eq '' && ! ($STUMP_MOD eq ''));
 
 if($light_heavy) {
 	for(my $k = 0; $k < @light_files; $k++) {
@@ -152,7 +179,7 @@ if($light_heavy) {
 			@light_files = @light_files[0 .. $k-1, $k+1 .. $#light_files];
 			$k--;
 		}
-		elsif(scalar keys %{$SAMPLEMAPFILES} > 0 && $light_files[$k] =~ /\/([^\/]+)\.pep.xml$/ && ! exists $SAMPLEMAPFILES->{$1}) {
+		elsif(scalar keys %{$SAMPLEMAPFILES} > 0 && $light_files[$k] =~ /$DIR_DIVISOR_REGX([^$DIR_DIVISOR_REGX]+)\.pep.xml$/ && ! exists $SAMPLEMAPFILES->{$1}) {
 			printf STDERR "Removing $light_files[$k] since not in samplemap file\n";
 			@light_files = @light_files[0 .. $k-1, $k+1 .. $#light_files];
 			$k--;
@@ -165,7 +192,7 @@ if($light_heavy) {
 			@heavy_files = @heavy_files[0 .. $k-1, $k+1 .. $#heavy_files];
 			$k--;
 		}
-		elsif(scalar keys %{$SAMPLEMAPFILES} > 0 && $heavy_files[$k] =~ /\/([^\/]+)\.pep.xml$/ && ! exists $SAMPLEMAPFILES->{$1}) {
+		elsif(scalar keys %{$SAMPLEMAPFILES} > 0 && $heavy_files[$k] =~ /$DIR_DIVISOR_REGX([^$DIR_DIVISOR_REGX]+)\.pep.xml$/ && ! exists $SAMPLEMAPFILES->{$1}) {
 			printf STDERR "Removing $heavy_files[$k] since not in samplemap file\n";
 			@heavy_files = @heavy_files[0 .. $k-1, $k+1 .. $#heavy_files];
 			$k--;
@@ -185,24 +212,42 @@ if($light_heavy) {
 	my $light_command = "xinteract $PEP_PROPH_OPTIONS -nP -N$light " . join(" ", @light_files);
 	my $heavy_command = "xinteract $PEP_PROPH_OPTIONS -nP -Eheavy -N$heavy " . join(" ", @heavy_files);
 
-	my $command = $light_command . "; " . $heavy_command . "; " . "InteractParser interact";
+	die "No light files\n" if(@light_files == 0);
+	die "No heavy files\n" if(@heavy_files == 0);
+	
+	my $command = $light_command . "; " . ($FORCE_NTT2 ? addRefreshForNtt2($light, $light_files[0])."; " : "") . 
+		$heavy_command . "; " . ($FORCE_NTT2 ? addRefreshForNtt2($heavy, $heavy_files[0])."; " : "") . "InteractParser interact";
+
+	if($IS_WINDOWS) {
+		push(@COMMANDS, $light_command);
+		push(@COMMANDS, addRefreshForNtt2($light, $light_files[0])) if($FORCE_NTT2);
+		push(@COMMANDS, $heavy_command);
+		push(@COMMANDS, addRefreshForNtt2($heavy, $heavy_files[0])) if($FORCE_NTT2);
+		push(@COMMANDS, "InteractParser interact");
+	}
+	my $windows_suffix = "";
 	if(! ($suffix eq '')) {
 		$command .= $suffix;
+		$windows_suffix .= $suffix;
 	}
 	$command .=".pep.xml $light $heavy";
+	$windows_suffix .=".pep.xml $light $heavy";
 	if(! ($MIN_PEP_LEN eq '')) {
 		$command .= " -L$MIN_PEP_LEN";
+		$windows_suffix .= " -L$MIN_PEP_LEN";
 	}
-	
+	$COMMANDS[-1] .= $windows_suffix if($IS_WINDOWS && ! ($windows_suffix eq ''));
 	my $inputfile = "interact.pep.xml"; #"iprophet.pep.xml";
+
 	$command .= "; PeptideProphetParser interact".$suffix.".pep.xml EXPECTSCORE ACCMASS DECOYPROBS NONPARAM MINPROB=0 PPM DECOY=rev_";
+	push(@COMMANDS, "PeptideProphetParser interact".$suffix.".pep.xml EXPECTSCORE ACCMASS DECOYPROBS NONPARAM MINPROB=0 PPM DECOY=rev_") if($IS_WINDOWS);
 
 	if($RUN_IPROPH) {
 		my $command2 = "InterProphetParser interact".$suffix.".pep.xml iprophet".$suffix.".pep.xml";
 		$inputfile = "iprophet".$suffix.".pep.xml";
-		$command .= '; ' . $command2 if($all);
+		$command .= "; " . $command2 if($all);
+		push(@COMMANDS, $command2) if($IS_WINDOWS && $all);
 	}
-
 	$XL_PROPH_OPTIONS .= "LIGHT_HEAVY";
 	if(! ($REPORTERMASS eq '')) {
 		$XL_PROPH_OPTIONS .= " REPORTERMASS=$REPORTERMASS";
@@ -211,21 +256,33 @@ if($light_heavy) {
 		$XL_PROPH_OPTIONS .= " IQPIR_REPORTERMASSES=$IQPIR_REPORTERMASSES";
 	}
 	my $command3 = "$XLINKPROPHET $inputfile $XL_PROPH_OPTIONS";
-	$command .= '; ' . $command3 if($all);
+	$command .= "; " . $command3 if($all);
+	push(@COMMANDS, $command3) if($IS_WINDOWS && $all);
 	if(! $exec) {
 		my $clean_command = $command;
-		$clean_command =~ s/\; /\n\n/g;
+		if($IS_WINDOWS) {
+			$clean_command = join("\n\n", @COMMANDS);
+		}
+		else {
+			$clean_command =~ s/\; /\n\n/g;
+		}
 		printf "\n%s\n", $clean_command;
 	}
 	else {
-		printf "%s\n", $command;
-		system($command)
+		if($IS_WINDOWS) {
+			foreach(@COMMANDS) {
+				printf "%s\n", $_;
+				system($_);
+			}
+		}
+		else {	
+			printf "%s\n", $command;
+			system($command)
+		}
 	}
 	exit(1);
 
 }
-
-
 
 for(my $k = 0; $k < @files; $k++) {
 	if($files[$k] =~ /interact/ || $files[$k] =~ /iproph/) {
@@ -233,7 +290,7 @@ for(my $k = 0; $k < @files; $k++) {
 		@files = @files[0 .. $k-1, $k+1 .. $#files];
 		$k--;
 	}
-	elsif(scalar keys %{$SAMPLEMAPFILES} > 0 && $files[$k] =~ /\/([^\/]+)\.pep.xml$/ && ! exists $SAMPLEMAPFILES->{$1}) {
+	elsif(scalar keys %{$SAMPLEMAPFILES} > 0 && $files[$k] =~ /$DIR_DIVISOR_REGX([^$DIR_DIVISOR_REGX]+)\.pep.xml$/ && ! exists $SAMPLEMAPFILES->{$1}) {
 		printf STDERR "Removing $files[$k] since not in samplemap file\n";
 		@files = @files[0 .. $k-1, $k+1 .. $#files];
 		$k--;
@@ -242,17 +299,26 @@ for(my $k = 0; $k < @files; $k++) {
 
 checkForReact2OrPeaks(\@files) if(! $pairfile);
 
+die "No input files\n" if(@files == 0);
+
 my $command = "xinteract $PEP_PROPH_OPTIONS ";
 if(! ($suffix eq '')) {
 	$command .= "-Ninteract".$suffix.".pep.xml ";
 }
 
 $command .= join(' ', @files);
+push(@COMMANDS, $command);
+if($FORCE_NTT2) {
+	$command .= '; ' . addRefreshForNtt2("interact".$suffix.".pep.xml", $files[0]);
+}
+
+
 my $inputfile = "interact.pep.xml"; #"iprophet.pep.xml";
 if($RUN_IPROPH) {
 	my $command2 = "InterProphetParser interact".$suffix.".pep.xml iprophet".$suffix.".pep.xml";
 	$inputfile = "iprophet".$suffix.".pep.xml";
 	$command .= '; ' . $command2 if($all);
+	push(@COMMANDS, $command2) if($IS_WINDOWS && $all);
 }
 if(! ($REPORTERMASS eq '')) {
 	$XL_PROPH_OPTIONS .= " REPORTERMASS=$REPORTERMASS";
@@ -262,18 +328,31 @@ if(! ($IQPIR_REPORTERMASSES eq '')) {
 }
 
 my $command3 = "$XLINKPROPHET $inputfile $XL_PROPH_OPTIONS";
-$command .= '; ' . $command3 if($all);
+$command .=  '; ' . $command3 if($all);
+push(@COMMANDS, $command3) if($IS_WINDOWS && $all);
 
 if(! $exec) {
 	my $clean_command = $command;
-	$clean_command =~ s/\; /\n\n/g;
+	if($IS_WINDOWS) {
+		$clean_command = join("\n\n", @COMMANDS);
+	}
+	else {
+		$clean_command =~ s/\; /\n\n/g;
+	}
 	printf "\n%s\n", $clean_command;
 }
 else {
-	printf "%s\n", $command;
-	system($command)
+	if($IS_WINDOWS) {
+		foreach(@COMMANDS) {
+			printf "%s\n", $_;
+			system($_);
+		}
+	}
+	else {	
+		printf "%s\n", $command;
+		system($command)
+	}
 }
-
 
 # returns whether pairfile used versus having ReACT or Mango results with react2.xls and peaks files, respectively
 sub readParams {
@@ -282,7 +361,7 @@ open(PARAMS, $paramsfile) or die "cannot read $paramsfile $!\n";
 my $parifile = 0;
 while(<PARAMS>) {
 	s/\#.*//; # strip off comments at right of each line
-	if(/^email\_address \= (\S+)/) {
+	if($SEND_EMAIL && /^email\_address \= (\S+)/) {
 		$XL_PROPH_OPTIONS .= "EMAIL=$1 ";
 		if($1 eq 'youremail@u.washington.edu') {
 			printf STDERR "Error: you must put your own email address in your xlinkprophet params file, not $1!\n";
@@ -311,9 +390,6 @@ while(<PARAMS>) {
 	elsif(/^spec\_contains \=\s*(\S+)/) {
 		$XL_PROPH_OPTIONS .= "SPEC_CONTAINS=$1 ";
 	}
-	elsif(0 && /^output\_suffix \=\s*(\S+)/) {
-		$XL_PROPH_OPTIONS .= "OUTPUT_SUFF=$1 ";
-	}
 	elsif(/^local\_react \= (\d)/ && $LOCAL_REACT != $1) {
 		$XL_PROPH_OPTIONS .= "LOCAL_REACT ";
 	}
@@ -323,7 +399,7 @@ while(<PARAMS>) {
 	}
 	elsif(/^xlinker\_stump\_mod\_masses \=\s*(\S+)/) {
 		my $masses = $1;
-		$XL_PROPH_OPTIONS .= "CROSSLINK_MODS=$masses ";
+		$STUMP_MOD = "CROSSLINK_MODS=$masses ";
 		printf STDERR  "----> Setting $XL_PROPH_OPTIONS\n";
 		if($masses !~ /\:/) {
 			die "Error: xlinker_stump_mod_masses is in wrong format.  Need A:235.343\n";
@@ -344,6 +420,7 @@ while(<PARAMS>) {
 			die "Error: crosslnk_mods is in wrong format.  Need A:235.343\n";
 		}
 	}
+
 }
 close(PARAMS);
 return $pairfile;
@@ -415,7 +492,7 @@ return \%output;
 
 
 sub writeParamsFile {
-	my $outfile = getcwd() . "/xlinkprophet.params";
+	my $outfile = getcwd() . $DIR_DIVISOR . "xlinkprophet.params";
 	if(-e $outfile) {
 		printf STDERR "xlinkprophet params file $outfile already exists.  Delete it and re-run runXLinkProphet.pl WRITEPARAMS if you want to write new one.\n";
 		exit(1);
@@ -426,6 +503,28 @@ sub writeParamsFile {
 	printf STDERR "xlinkprophet.params file $outfile written.  Make sure to edit the file with your correct email address\n";
 
 }
+
+sub addRefreshForNtt2 {
+(my $interact, my $inputpepxml) = @_;
+# first get database
+open GREP, "grep 'search_database local_path' $inputpepxml |";
+my @results = <GREP>;
+close(GREP);
+die "Error: no database found in $inputpepxml\n" if(@results == 0);
+chomp $results[0];
+my $database = "";
+if($results[0] =~ /local\_path\=\"(\S+?)\"/) {
+	$database = $1;
+	die "Error: database $database not found\n"if(! -e $database);
+}
+else {
+	die "Error: no database found in $results[0]\n"
+}
+return "RefreshParser $interact $database 2";
+
+
+}
+
 
 sub displayParamsFile {
 (my $stream, my $tab) = @_;
