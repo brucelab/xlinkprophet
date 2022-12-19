@@ -1366,14 +1366,28 @@ foreach(sort {$a cmp $b} keys %results) {
 			# here have to change REPORTER MASS depending on the peptides $results{$_}->{1}->[2], $results{$_}->{2}->[2]
 			if(@IQPIR_reportermasses > 0) {
 				$REPORTERMASS = -1; 
+				my @reportermasses = (0, 0);
 				for(my $z = 0; $z < @IQPIR_reportermasses; $z++) {
 					if($results{$_}->{1}->[2] =~ /K\[$IQPIR_reportermasses[$z]\]/ && $results{$_}->{2}->[2] =~ /K\[$IQPIR_reportermasses[$z]\]/) {
 						$REPORTERMASS = $IQPIR_REPORTERMASSES{$IQPIR_reportermasses[$z]};
 						$z = @IQPIR_reportermasses;
 					}
+					else {
+						if($results{$_}->{1}->[2] =~ /\[$IQPIR_reportermasses[$z]\]/) {
+							$reportermasses[0] = $IQPIR_REPORTERMASSES{$IQPIR_reportermasses[$z]};
+						}
+						if($results{$_}->{2}->[2] =~ /\[$IQPIR_reportermasses[$z]\]/) {
+							$reportermasses[1] = $IQPIR_REPORTERMASSES{$IQPIR_reportermasses[$z]};
+						}
+					}
 				}
 				if($REPORTERMASS == -1) {
-					die "Error: no reporter mass matching " . join(",", @IQPIR_reportermasses). " found consistent with mods on $results{$_}->{1}->[2] and/or $results{$_}->{2}->[2]\n";
+					if($reportermasses[0] != 0 && $reportermasses[1] != 0 && $reportermasses[0] == $reportermasses[1]) {
+						$REPORTERMASS = $reportermasses[0];
+					}
+					else {
+						die "Error: no reporter mass matching " . join(",", @IQPIR_reportermasses). " found consistent with mods on $results{$_}->{1}->[2] and/or $results{$_}->{2}->[2]\n";
+					}
 				}
 			}
 			
