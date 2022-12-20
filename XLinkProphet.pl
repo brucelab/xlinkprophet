@@ -2764,7 +2764,6 @@ for(my $k = 0; $k < @CROSSLINK_MODS; $k++) {
 	my @next = keys %{$CROSSLINK_MODS[$k]};
 	for(my $j = 0; $j < @next; $j++) {
 		my $next_mod = $next[$j].'\['.$CROSSLINK_MODS[$k]->{$next[$j]}.'\]';
-		printf "$k, $j: NExt mod2: $next_mod.....compared in sequence $modpep2\n" if($verbose);
 		if($modpep2 =~ /$next_mod$/) { # can't be C-terminal
 			return 1;
 		}
@@ -2773,7 +2772,6 @@ for(my $k = 0; $k < @CROSSLINK_MODS; $k++) {
 			return 1; # cannot have two mods in one peptide
 			}
 			$found = 1;
-			printf "Found with $next_mod for second peptide $modpep2!\n" if($verbose);
 		}
 	}
 }
