@@ -118,6 +118,8 @@ my %IQPIR_REPORTERMASSES = (); # hashed from stump mass to corresponding reporte
 my %FULL_STUMP_MASSES = ();
 my $DIR_DIVISOR_REGX = $^O =~ /Win/ ? "\\\\" : "\/";
 my $DIR_DIVISOR = $^O =~ /Win/ ? "\\" : "/";
+my $ALLOW_DIFF_PEPMODS = 0; # Set to 1 to allow different stump mod masses on each peptide of cross-link
+
 
 my $file = $ARGV[0];
 if($file !~ /^$DIR_DIVISOR_REGX/) {
@@ -2732,10 +2734,60 @@ for(my $k = 0; $k < @CROSSLINK_MODS; $k++) {
 $copy =~ s/\[.*?\]//g;
 return $copy;
 }
+sub getNonCrosslinkedPeptidePairWithoutSameModConstraint {
+(my $modpep1, my $modpep2) = @_;
+my $found = 0;
+my $crosslink_index = -1;
+for(my $k = 0; $k < @CROSSLINK_MODS; $k++) {
+	my @next = keys %{$CROSSLINK_MODS[$k]};
+	for(my $j = 0; $j < @next; $j++) {
+		my $next_mod = $next[$j].'\['.$CROSSLINK_MODS[$k]->{$next[$j]}.'\]';
+		if($modpep1 =~ /$next_mod$/) { # can't be C-terminal
+			return 1;
+		}
+		if($modpep1 =~ /$next_mod/) {
+			if($found) {
+				return 1; # cannot have two mods in one peptide
+			}
+			if($crosslink_index > -1 && $crosslink_index != $k) {
+				return 1;
+			}
+			$found = 1;
+			$crosslink_index = $k;
+		}
+	}
+}
+return 1 if(! $found);
+$found = 0;
+
+for(my $k = 0; $k < @CROSSLINK_MODS; $k++) {
+	my @next = keys %{$CROSSLINK_MODS[$k]};
+	for(my $j = 0; $j < @next; $j++) {
+		my $next_mod = $next[$j].'\['.$CROSSLINK_MODS[$k]->{$next[$j]}.'\]';
+		printf "$k, $j: NExt mod2: $next_mod.....compared in sequence $modpep2\n" if($verbose);
+		if($modpep2 =~ /$next_mod$/) { # can't be C-terminal
+			return 1;
+		}
+		if($modpep2 =~ /$next_mod/) {
+			if($found) {
+			return 1; # cannot have two mods in one peptide
+			}
+			$found = 1;
+			printf "Found with $next_mod for second peptide $modpep2!\n" if($verbose);
+		}
+	}
+}
+
+
+return 1 if(! $found);
+return 0; # ok
+
+}
 
 # each peptide must have one and only one legal modification either at the n-terminus or at non-C-terminal lysine
 sub getNonCrosslinkedPeptidePair {
 (my $modpep1, my $modpep2) = @_;
+return getNonCrosslinkedPeptidePairWithoutSameModConstraint($modpep1, $modpep2) if($ALLOW_DIFF_PEPMODS);
 my $found = 0;
 my $crosslink_index = -1;
 my $verbose = 0; #$modpep1 eq 'AK[214.08]SIVFHR' && $modpep2 eq 'SNYNFEK[214.08]PFLWLAR';
