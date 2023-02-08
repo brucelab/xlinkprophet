@@ -374,6 +374,9 @@ while(<PARAMS>) {
 			$MIN_PEP_LEN = $1;
 			$XL_PROPH_OPTIONS .= "MIN_PEPLEN=$MIN_PEP_LEN "; # pass to XLinkProphet
 		}
+		if($PEP_PROPH_OPTIONS =~ /\-d(\S+)/ && ! ($1 eq 'rev_')) {
+			$XL_PROPH_OPTIONS .= "DECOY_PREFIX=$1 ";
+		}
 	}
 	elsif(/^run\_iprophet \= (\d)/) {
 		$RUN_IPROPH = $1;
